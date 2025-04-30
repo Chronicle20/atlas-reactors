@@ -1,6 +1,8 @@
 package state
 
-import "atlas-reactors/reactor/data/item"
+import (
+	"atlas-reactors/data/reactor/item"
+)
 
 type Model struct {
 	theType      int32

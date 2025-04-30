@@ -27,7 +27,7 @@ func InitResource(si jsonapi.ServerInformation) server.RouteInitializer {
 func handleGetById(d *rest.HandlerDependency, c *rest.HandlerContext) http.HandlerFunc {
 	return rest.ParseReactorId(d.Logger(), func(reactorId uint32) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
-			m, err := GetById(d.Logger())(d.Context())(reactorId)
+			m, err := NewProcessor(d.Logger(), d.Context()).GetById(reactorId)
 			if err != nil {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -51,7 +51,7 @@ func handleGetByIdInMap(d *rest.HandlerDependency, c *rest.HandlerContext) http.
 			return rest.ParseMapId(d.Logger(), func(mapId uint32) http.HandlerFunc {
 				return rest.ParseReactorId(d.Logger(), func(reactorId uint32) http.HandlerFunc {
 					return func(w http.ResponseWriter, r *http.Request) {
-						m, err := GetById(d.Logger())(d.Context())(reactorId)
+						m, err := NewProcessor(d.Logger(), d.Context()).GetById(reactorId)
 						if err != nil || m.WorldId() != worldId || m.ChannelId() != channelId || m.MapId() != mapId {
 							w.WriteHeader(http.StatusNotFound)
 							return
@@ -95,7 +95,7 @@ func handleGetInMap(d *rest.HandlerDependency, c *rest.HandlerContext) http.Hand
 		return rest.ParseChannelId(d.Logger(), func(channelId byte) http.HandlerFunc {
 			return rest.ParseMapId(d.Logger(), func(mapId uint32) http.HandlerFunc {
 				return func(w http.ResponseWriter, r *http.Request) {
-					ms, err := GetInMap(d.Logger())(d.Context())(worldId, channelId, mapId)
+					ms, err := NewProcessor(d.Logger(), d.Context()).GetInMap(worldId, channelId, mapId)
 					if err != nil {
 						w.WriteHeader(http.StatusInternalServerError)
 						return

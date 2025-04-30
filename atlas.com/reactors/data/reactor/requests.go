@@ -1,4 +1,4 @@
-package data
+package reactor
 
 import (
 	"atlas-reactors/rest"

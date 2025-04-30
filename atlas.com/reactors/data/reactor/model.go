@@ -1,8 +1,8 @@
-package data
+package reactor
 
 import (
-	"atlas-reactors/reactor/data/point"
-	"atlas-reactors/reactor/data/state"
+	"atlas-reactors/data/reactor/point"
+	"atlas-reactors/data/reactor/state"
 )
 
 type Model struct {

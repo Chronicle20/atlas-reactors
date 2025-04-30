@@ -41,5 +41,5 @@ func handleCreate(l logrus.FieldLogger, ctx context.Context, c command[createCom
 		SetDelay(c.Body.Delay).
 		SetDirection(c.Body.Direction)
 
-	_ = reactor.Create(l)(ctx)(b)
+	_ = reactor.NewProcessor(l, ctx).Create(b)
 }

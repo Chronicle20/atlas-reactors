@@ -1,8 +1,8 @@
 package reactor
 
 import (
+	"atlas-reactors/data/reactor"
 	"atlas-reactors/kafka/producer"
-	"atlas-reactors/reactor/data"
 	"context"
 	"github.com/Chronicle20/atlas-model/model"
 	"github.com/Chronicle20/atlas-tenant"
@@ -10,81 +10,59 @@ import (
 	"go.opentelemetry.io/otel"
 )
 
-func GetById(l logrus.FieldLogger) func(ctx context.Context) func(id uint32) (Model, error) {
-	return func(ctx context.Context) func(id uint32) (Model, error) {
-		return func(id uint32) (Model, error) {
-			return GetRegistry().Get(id)
-		}
-	}
+type Processor struct {
+	l   logrus.FieldLogger
+	ctx context.Context
+	t   tenant.Model
+	rd  *reactor.Processor
 }
 
-func GetInMap(l logrus.FieldLogger) func(ctx context.Context) func(worldId byte, channelId byte, mapId uint32) ([]Model, error) {
-	return func(ctx context.Context) func(worldId byte, channelId byte, mapId uint32) ([]Model, error) {
-		t := tenant.MustFromContext(ctx)
-		return func(worldId byte, channelId byte, mapId uint32) ([]Model, error) {
-			return GetRegistry().GetInMap(t, worldId, channelId, mapId), nil
-		}
+func NewProcessor(l logrus.FieldLogger, ctx context.Context) *Processor {
+	p := &Processor{
+		l:   l,
+		ctx: ctx,
+		t:   tenant.MustFromContext(ctx),
+		rd:  reactor.NewProcessor(l, ctx),
 	}
+	return p
 }
 
-func Create(l logrus.FieldLogger) func(ctx context.Context) func(b *ModelBuilder) error {
-	return func(ctx context.Context) func(b *ModelBuilder) error {
-		t := tenant.MustFromContext(ctx)
-		return func(b *ModelBuilder) error {
-			d, err := data.GetById(l)(ctx)(b.Classification())
-			if err != nil {
-				l.WithError(err).Errorf("Unable to retrieve reactor [%d] game data.", b.Classification())
-				return err
-			}
-			b.SetData(d)
-			r := GetRegistry().Create(t, b)
-			l.Debugf("Created reactor [%d] of [%d].", r.Id(), r.Classification())
-			return producer.ProviderImpl(l)(ctx)(EnvEventStatusTopic)(createdStatusEventProvider(r))
-		}
+func (p *Processor) GetById(id uint32) (Model, error) {
+	return GetRegistry().Get(id)
+}
+
+func (p *Processor) GetInMap(worldId byte, channelId byte, mapId uint32) ([]Model, error) {
+	return GetRegistry().GetInMap(p.t, worldId, channelId, mapId), nil
+}
+
+func (p *Processor) Create(b *ModelBuilder) error {
+	d, err := p.rd.GetById(b.Classification())
+	if err != nil {
+		p.l.WithError(err).Errorf("Unable to retrieve reactor [%d] game data.", b.Classification())
+		return err
 	}
+	b.SetData(d)
+	r := GetRegistry().Create(p.t, b)
+	p.l.Debugf("Created reactor [%d] of [%d].", r.Id(), r.Classification())
+	return producer.ProviderImpl(p.l)(p.ctx)(EnvEventStatusTopic)(createdStatusEventProvider(r))
 }
 
 func Teardown(l logrus.FieldLogger) func() {
 	return func() {
-		ctx, span := otel.GetTracerProvider().Tracer("atlas-reactors").Start(context.Background(), "teardown")
+		sctx, span := otel.GetTracerProvider().Tracer("atlas-reactors").Start(context.Background(), "teardown")
 		defer span.End()
 
-		err := DestroyAll(l)(ctx)
+		err := model.ForEachMap(model.FixedProvider(GetRegistry().GetAll()), func(t tenant.Model) model.Operator[[]Model] {
+			tctx := tenant.WithContext(sctx, t)
+			return model.ExecuteForEachSlice(NewProcessor(l, tctx).Destroy, model.ParallelExecute())
+		}, model.ParallelExecute())
 		if err != nil {
 			l.WithError(err).Errorf("Error destroying all reactors on teardown.")
 		}
 	}
 }
 
-func allByTenantProvider() model.Provider[map[tenant.Model][]Model] {
-	return func() (map[tenant.Model][]Model, error) {
-		return GetRegistry().GetAll(), nil
-	}
-}
-
-func DestroyAll(l logrus.FieldLogger) func(ctx context.Context) error {
-	return func(ctx context.Context) error {
-		return model.ForEachMap(allByTenantProvider(), DestroyInTenant(l)(ctx), model.ParallelExecute())
-	}
-}
-
-func DestroyInTenant(l logrus.FieldLogger) func(ctx context.Context) func(t tenant.Model) model.Operator[[]Model] {
-	return func(ctx context.Context) func(t tenant.Model) model.Operator[[]Model] {
-		return func(t tenant.Model) model.Operator[[]Model] {
-			return func(models []Model) error {
-				tctx := tenant.WithContext(ctx, t)
-				return model.ForEachSlice(model.FixedProvider(models), Destroy(l)(tctx), model.ParallelExecute())
-			}
-		}
-	}
-}
-
-func Destroy(l logrus.FieldLogger) func(ctx context.Context) model.Operator[Model] {
-	return func(ctx context.Context) model.Operator[Model] {
-		return func(m Model) error {
-			t := tenant.MustFromContext(ctx)
-			GetRegistry().Remove(t, m.Id())
-			return producer.ProviderImpl(l)(ctx)(EnvEventStatusTopic)(destroyedStatusEventProvider(m))
-		}
-	}
+func (p *Processor) Destroy(m Model) error {
+	GetRegistry().Remove(p.t, m.Id())
+	return producer.ProviderImpl(p.l)(p.ctx)(EnvEventStatusTopic)(destroyedStatusEventProvider(m))
 }

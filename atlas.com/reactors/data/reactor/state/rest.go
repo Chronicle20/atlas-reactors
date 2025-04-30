@@ -1,6 +1,8 @@
 package state
 
-import "atlas-reactors/reactor/data/item"
+import (
+	"atlas-reactors/data/reactor/item"
+)
 
 type RestModel struct {
 	Type         int32           `json:"type"`

@@ -1,18 +1,18 @@
-package data
+package reactor
 
 import (
-	"atlas-reactors/reactor/data/point"
-	"atlas-reactors/reactor/data/state"
+	"atlas-reactors/data/reactor/point"
+	state2 "atlas-reactors/data/reactor/state"
 	"github.com/Chronicle20/atlas-model/model"
 	"strconv"
 )
 
 type RestModel struct {
-	Id          uint32                     `json:"-"`
-	TL          point.RestModel            `json:"tl"`
-	BR          point.RestModel            `json:"br"`
-	StateInfo   map[int8][]state.RestModel `json:"stateInfo"`
-	TimeoutInfo map[int8]int32             `json:"timeoutInfo"`
+	Id          uint32                      `json:"-"`
+	TL          point.RestModel             `json:"tl"`
+	BR          point.RestModel             `json:"br"`
+	StateInfo   map[int8][]state2.RestModel `json:"stateInfo"`
+	TimeoutInfo map[int8]int32              `json:"timeoutInfo"`
 }
 
 func (r RestModel) GetName() string {
@@ -41,11 +41,11 @@ func Extract(rm RestModel) (Model, error) {
 	if err != nil {
 		return Model{}, err
 	}
-	si := make(map[int8][]state.Model)
+	si := make(map[int8][]state2.Model)
 	for k, vs := range rm.StateInfo {
-		si[k] = make([]state.Model, 0)
+		si[k] = make([]state2.Model, 0)
 		for _, v := range vs {
-			sm, err := state.Extract(v)
+			sm, err := state2.Extract(v)
 			if err != nil {
 				return Model{}, err
 			}

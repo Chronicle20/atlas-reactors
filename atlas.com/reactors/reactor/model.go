@@ -1,7 +1,7 @@
 package reactor
 
 import (
-	"atlas-reactors/reactor/data"
+	"atlas-reactors/data/reactor"
 	"github.com/Chronicle20/atlas-tenant"
 	"time"
 )
@@ -14,7 +14,7 @@ type Model struct {
 	mapId          uint32
 	classification uint32
 	name           string
-	data           data.Model
+	data           reactor.Model
 	state          int8
 	eventState     byte
 	delay          uint32
@@ -76,7 +76,7 @@ func (m Model) UpdateTime() time.Time {
 	return m.updateTime
 }
 
-func (m Model) Data() data.Model {
+func (m Model) Data() reactor.Model {
 	return m.data
 }
 
@@ -92,7 +92,7 @@ type ModelBuilder struct {
 	mapId          uint32
 	classification uint32
 	name           string
-	data           data.Model
+	data           reactor.Model
 	state          int8
 	eventState     byte
 	delay          uint32
@@ -179,7 +179,7 @@ func (b *ModelBuilder) Classification() uint32 {
 	return b.classification
 }
 
-func (b *ModelBuilder) SetData(data data.Model) *ModelBuilder {
+func (b *ModelBuilder) SetData(data reactor.Model) *ModelBuilder {
 	b.data = data
 	return b
 }
